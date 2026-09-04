@@ -11,7 +11,7 @@ Escape from Tarkov의 **의료품 · 가방/리그 · 탄약**을 초보자 관�
 ### 1단계. 내려받고 폴더로 이동
 
 ```bash
-git clone <이 저장소 주소>
+git clone https://github.com/sinaint/tarkov_guide.git
 cd tarkov_guide
 ```
 
