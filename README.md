@@ -203,6 +203,21 @@ tarkov_guide/
   Django 가 `startproject` 시 생성하는 개발용 placeholder 로, **실제 서비스에 배포된 적이 없고
   이미 폐기**되었습니다. 히스토리에는 남아 있으나 어디에도 유효하지 않습니다.
   현재 개발 키는 `get_random_secret_key()` 로 새로 생성해 `.env` 로 분리했습니다.
+- **클릭재킹 방어** — `XFrameOptionsMiddleware` 를 적용해 모든 응답에
+  `X-Frame-Options: DENY` 가 붙습니다. 남의 사이트가 이 페이지를 투명한 iframe 으로
+  덮어 클릭을 가로채는 공격을 막습니다. (Django 기본 미들웨어인데 빠져 있어 되살렸습니다)
 - 이 앱은 로그인·결제·개인정보를 다루지 않으며 읽기 전용 공개 데이터만 보여줍니다.
-  실제 인터넷에 공개 배포한다면 `python manage.py check --deploy` 를 먼저 돌려
-  HTTPS·보안 쿠키·클릭재킹 헤더 설정을 추가하세요.
+
+### 배포 시점에 추가할 것 (의도적으로 미룸)
+
+`python manage.py check --deploy` 를 돌리면 아래 항목이 남습니다.
+**전부 HTTPS 를 전제로 하는 설정이라, 평문 HTTP 인 로컬 개발 환경에서 켜면 접속이 막힙니다.**
+그래서 지금 켜지 않고, 실제 배포가 결정되는 시점에 `if not DEBUG:` 블록으로 추가할 항목으로 남겨둡니다.
+
+| 항목 | 설정 |
+|---|---|
+| HTTPS 강제 리다이렉트 (W008) | `SECURE_SSL_REDIRECT = True` |
+| HSTS (W004) | `SECURE_HSTS_SECONDS` — 문서를 먼저 읽을 것. 성급히 켜면 되돌리기 어렵습니다 |
+| 세션 쿠키 (W012) | `SESSION_COOKIE_SECURE = True` |
+| CSRF 쿠키 (W016) | `CSRF_COOKIE_SECURE = True` |
+| `DEBUG` (W018) | 환경변수 `DJANGO_DEBUG` 를 주지 않으면 이미 `False` — 배포 시 자동 해결 |

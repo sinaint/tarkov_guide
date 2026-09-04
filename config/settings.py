@@ -64,6 +64,10 @@ MIDDLEWARE = [
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
+    # 응답에 X-Frame-Options 헤더를 붙여 클릭재킹을 막습니다.
+    # (남의 사이트가 이 페이지를 투명한 iframe 으로 덮어씌워 클릭을 가로채는 공격)
+    # Django 가 startproject 시 기본으로 넣어주는 미들웨어인데 빠져 있었습니다.
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
