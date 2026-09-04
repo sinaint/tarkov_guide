@@ -1,0 +1,63 @@
+{% extends "guide/base.html" %}
+{% load humanize %}
+
+{% block title %}부품 가성비 랭킹{% endblock %}
+
+{% block content %}
+<h1>3단계 · 부품 가성비 랭킹</h1>
+
+<div class="notice">
+  <b>가성비 점수</b> = (조준편의 상승 + 반동 감소량) ÷ 만 루블<br>
+  숫자가 클수록 <b>싼 값에 성능이 많이 오르는 부품</b>입니다. 초보자는 이 순서대로 사면 됩니다.<br>
+  <span class="item-sub">전체 {{ total }}개 중 상위 120개만 표시합니다.</span>
+</div>
+
+<div class="filters">
+  <a href="?sort=value{% if budget %}&budget={{ budget }}{% endif %}{% if mod_type %}&type={{ mod_type }}{% endif %}"
+     class="{% if sort_key == 'value' %}on{% endif %}">가성비 순</a>
+  <a href="?sort=recoil{% if budget %}&budget={{ budget }}{% endif %}{% if mod_type %}&type={{ mod_type }}{% endif %}"
+     class="{% if sort_key == 'recoil' %}on{% endif %}">반동 감소 순</a>
+  <a href="?sort=ergo{% if budget %}&budget={{ budget }}{% endif %}{% if mod_type %}&type={{ mod_type }}{% endif %}"
+     class="{% if sort_key == 'ergo' %}on{% endif %}">조준편의 순</a>
+</div>
+
+<form class="filters" method="get">
+  <input type="hidden" name="sort" value="{{ sort_key }}">
+  <input type="text" name="budget" value="{{ budget }}" placeholder="예산 상한 (예: 50000)">
+  <select name="type">
+    <option value="">전체 종류</option>
+    {% for t in types %}
+    <option value="{{ t }}" {% if mod_type == t %}selected{% endif %}>{{ t }}</option>
+    {% endfor %}
+  </select>
+  <button type="submit">적용</button>
+</form>
+
+{% for m in items %}
+<div class="card">
+  {% if m.icon_link %}<img class="thumb" src="{{ m.icon_link }}" alt="{{ m.name }}" loading="lazy">{% endif %}
+  <div class="body">
+    <div class="item-name">
+      {% if m.wiki_link %}<a href="{{ m.wiki_link }}" target="_blank" rel="noopener">{{ m.name }}</a>
+      {% else %}{{ m.name }}{% endif %}
+      <span class="item-sub">{{ m.mod_type }}</span>
+      {% if m.value_score %}<span class="tag good">가성비 {{ m.value_score }}</span>{% endif %}
+    </div>
+    <div class="spec">
+      {% if m.ergonomics is not None %}
+        <span class="tag {% if m.is_good_ergo %}good{% else %}bad{% endif %}">조준편의 {{ m.ergonomics }}</span>
+      {% endif %}
+      {% if m.recoil_percent is not None %}
+        <span class="tag {% if m.is_good_recoil %}good{% else %}bad{% endif %}">반동 {{ m.recoil_percent }}%</span>
+      {% endif %}
+      {% if m.has_sub_slots %}<span class="tag">+슬롯</span>{% endif %}
+      <span class="tag">₽{{ m.price|intcomma }}</span>
+    </div>
+  </div>
+</div>
+{% empty %}
+<div class="empty">
+  조건에 맞는 부품이 없습니다. 예산을 올리거나 종류 필터를 풀어보세요.
+</div>
+{% endfor %}
+{% endblock %}

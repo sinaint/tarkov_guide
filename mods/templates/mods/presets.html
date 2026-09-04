@@ -1,0 +1,50 @@
+{% extends "guide/base.html" %}
+{% load humanize %}
+
+{% block title %}완성 프리셋 비교{% endblock %}
+
+{% block content %}
+<h1>1단계 · 완성 프리셋 비교</h1>
+
+<div class="notice">
+  프리셋은 <b>이미 조립이 끝난 총</b>입니다. 호환성을 따질 필요가 없어서 초보자에게 가장 안전한 선택이에요.<br>
+  같은 총끼리 묶어서, 그룹마다 <span class="tag good">추천</span> 표시가 종합 점수 1위입니다.
+  <span class="item-sub">(종합 점수 = 조준편의 − 세로반동×0.5, 같은 총 안에서만 비교하세요)</span>
+</div>
+
+<form class="filters" method="get">
+  <input type="text" name="q" value="{{ keyword }}" placeholder="총기 이름 검색 (예: M4)">
+  <button type="submit">검색</button>
+  <span class="item-sub">프리셋이 많은 총기 순</span>
+</form>
+
+{% for g in grouped %}
+<h2>{{ g.base }} <span class="item-sub">({{ g.presets|length }}종)</span></h2>
+{% for p in g.presets %}
+<div class="card">
+  {% if p.icon_link %}<img class="thumb" src="{{ p.icon_link }}" alt="{{ p.name }}" loading="lazy">{% endif %}
+  <div class="body">
+    <div class="item-name">
+      {% if p.wiki_link %}<a href="{{ p.wiki_link }}" target="_blank" rel="noopener">{{ p.name }}</a>
+      {% else %}{{ p.name }}{% endif %}
+      {% if p == g.best %}<span class="tag good">추천</span>{% endif %}
+      {% if p.is_default %}<span class="tag">기본형</span>{% endif %}
+    </div>
+    <div class="spec">
+      <b>조준편의</b> {{ p.ergonomics|default:"-" }} ·
+      <b>세로반동</b> {{ p.recoil_vertical|default:"-" }} ·
+      <b>가로반동</b> {{ p.recoil_horizontal|default:"-" }}
+      {% if p.moa %} · <b>정확도</b> {{ p.moa }} MOA{% endif %}
+      · <b>가격</b> ₽{{ p.price|intcomma }}
+    </div>
+    <div class="spec"><b>종합 점수</b> {{ p.score }}</div>
+  </div>
+</div>
+{% endfor %}
+{% empty %}
+<div class="empty">
+  프리셋 데이터가 없습니다.<br>
+  <code>python manage.py sync_mods</code> 를 실행해 주세요.
+</div>
+{% endfor %}
+{% endblock %}

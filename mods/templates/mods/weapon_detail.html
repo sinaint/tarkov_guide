@@ -1,0 +1,66 @@
+{% extends "guide/base.html" %}
+{% load humanize %}
+
+{% block title %}{{ weapon.name }} 모딩{% endblock %}
+
+{% block content %}
+<h1>{{ weapon.name }}</h1>
+
+<div class="card">
+  {% if weapon.icon_link %}<img class="thumb" src="{{ weapon.icon_link }}" alt="{{ weapon.name }}">{% endif %}
+  <div class="body">
+    <div class="spec">
+      <b>구경</b> {{ weapon.caliber_kr|default:"-" }} ·
+      <b>조준편의</b> {{ weapon.ergonomics|default:"-" }} ·
+      <b>세로반동</b> {{ weapon.recoil_vertical|default:"-" }} ·
+      <b>가로반동</b> {{ weapon.recoil_horizontal|default:"-" }}
+      {% if weapon.fire_rate %} · <b>연사</b> {{ weapon.fire_rate }} RPM{% endif %}
+    </div>
+    <div class="spec">위 수치는 <b>맨몸 상태</b> 기준입니다. 부품을 달면 달라집니다.</div>
+  </div>
+</div>
+
+<div class="notice">
+  슬롯마다 장착 가능한 부품이 수십~수백 개라 <b>상위 8개만</b> 추려서 보여줍니다.<br>
+  하위 슬롯이 있는 부품에는 <span class="tag">+슬롯</span> 표시가 붙습니다 — 그 부품에 또 뭔가를 끼울 수 있다는 뜻이에요.
+</div>
+
+<div class="filters">
+  <a href="?sort=recoil" class="{% if sort_key == 'recoil' %}on{% endif %}">반동 감소 순</a>
+  <a href="?sort=ergo" class="{% if sort_key == 'ergo' %}on{% endif %}">조준편의 순</a>
+  <a href="{% url 'mods:weapons' %}">← 총기 목록</a>
+</div>
+
+{% for slot in slots %}
+<h2>{{ slot.name }} <span class="item-sub">(장착 가능 {{ slot.total }}종)</span></h2>
+{% for m in slot.top %}
+<div class="card">
+  {% if m.icon_link %}<img class="thumb" src="{{ m.icon_link }}" alt="{{ m.name }}" loading="lazy">{% endif %}
+  <div class="body">
+    <div class="item-name">
+      {% if m.wiki_link %}<a href="{{ m.wiki_link }}" target="_blank" rel="noopener">{{ m.name }}</a>
+      {% else %}{{ m.name }}{% endif %}
+      {% if m.has_sub_slots %}<span class="tag">+슬롯</span>{% endif %}
+    </div>
+    <div class="spec">
+      {% if m.ergonomics is not None %}
+        <span class="tag {% if m.is_good_ergo %}good{% else %}bad{% endif %}">조준편의 {{ m.ergonomics }}</span>
+      {% endif %}
+      {% if m.recoil_percent is not None %}
+        <span class="tag {% if m.is_good_recoil %}good{% else %}bad{% endif %}">반동 {{ m.recoil_percent }}%</span>
+      {% endif %}
+      <span class="tag">₽{{ m.price|intcomma }}</span>
+    </div>
+  </div>
+</div>
+{% endfor %}
+{% if slot.hidden %}
+<div class="spec">… 외 {{ slot.hidden }}종 더 있음</div>
+{% endif %}
+{% empty %}
+<div class="empty">
+  이 총기의 슬롯 정보가 없습니다.<br>
+  <code>python manage.py sync_mods</code> 를 <code>--no-slots</code> 없이 실행했는지 확인해 주세요.
+</div>
+{% endfor %}
+{% endblock %}

@@ -1,0 +1,63 @@
+{% extends "guide/base.html" %}
+
+{% block title %}총기 모딩{% endblock %}
+
+{% block content %}
+<h1>총기 모딩</h1>
+
+<div class="notice warn">
+  <b>수치 읽는 법 — 이것만 외우면 절반은 끝납니다</b><br>
+  ▸ <b>조준편의(ergonomics)</b> — <u>높을수록 좋음.</u> 조준 속도와 숨 참는 시간이 늘어납니다.<br>
+  ▸ <b>세로 반동(recoil vertical)</b> — <u>낮을수록 좋음.</u> 연사할 때 총구가 들리는 정도입니다.<br>
+  ▸ <b>반동 변화율(recoil modifier)</b> — <u>음수일수록 좋음.</u> -0.05는 반동 5% 감소라는 뜻입니다.
+</div>
+
+<div class="notice">
+  <b>초보자 모딩 우선순위</b><br>
+  ① <b>반동 부품</b> (총구·개머리판·손잡이) — 싸고 효과가 가장 큽니다<br>
+  ② <b>조준편의 부품</b> — 반동을 잡은 뒤에 손대세요<br>
+  ③ <b>광학 장비</b> — 마지막입니다. 비싼 도트부터 사는 게 초보자의 가장 흔한 실수예요<br><br>
+  ⚠️ 소음기는 반동과 조준편의를 동시에 개선하지만 <b>매우 비싸고 잃으면 손해가 큽니다.</b>
+  그리고 큰 배율 조준경은 근접전에서 오히려 불리합니다.
+</div>
+
+<div class="card">
+  <div class="body">
+    <div class="item-name"><a href="{% url 'mods:presets' %}">1단계 · 완성 프리셋 비교</a>
+      <span class="item-sub">{{ preset_count }}개</span></div>
+    <div class="spec">
+      조립이 이미 끝난 총들의 최종 수치를 같은 총끼리 묶어 비교합니다.
+      <b>"어떤 걸 사면 되나"에 가장 빨리 답이 나오는 페이지입니다.</b>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="body">
+    <div class="item-name"><a href="{% url 'mods:weapons' %}">2단계 · 총기별 슬롯 트리</a>
+      <span class="item-sub">총기 {{ weapon_count }}정 · 연결 {{ slot_count }}건</span></div>
+    <div class="spec">
+      총 하나를 골라 <b>어느 슬롯에 뭘 끼울 수 있는지</b> 봅니다.
+      슬롯당 상위 8개만 추려서 보여줍니다 — 전부 뿌리면 브라우저가 멈춥니다.
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="body">
+    <div class="item-name"><a href="{% url 'mods:parts' %}">3단계 · 부품 가성비 랭킹</a>
+      <span class="item-sub">{{ mod_count }}개</span></div>
+    <div class="spec">
+      예산 상한을 걸고 <b>루블당 성능 향상</b>이 큰 부품부터 정렬합니다.
+      "20만 루블로 반동 최대한 줄이기" 같은 계획을 세울 때 씁니다.
+    </div>
+  </div>
+</div>
+
+{% if not weapon_count %}
+<div class="notice warn">
+  데이터가 없습니다. 먼저 아래를 실행해 주세요.<br>
+  <code>python manage.py sync_mods</code>
+</div>
+{% endif %}
+{% endblock %}

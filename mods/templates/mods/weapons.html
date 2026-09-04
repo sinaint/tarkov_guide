@@ -1,0 +1,46 @@
+{% extends "guide/base.html" %}
+{% load humanize %}
+
+{% block title %}총기 목록{% endblock %}
+
+{% block content %}
+<h1>2단계 · 총기 선택</h1>
+
+<div class="notice">
+  총을 고르면 <b>슬롯별로 장착 가능한 부품</b>을 볼 수 있습니다.<br>
+  아래 숫자는 맨몸 상태(부품 없음) 기준이라, 모딩하면 크게 달라집니다.
+</div>
+
+<form class="filters" method="get">
+  <input type="text" name="q" value="{{ keyword }}" placeholder="이름 또는 구경 검색">
+  <button type="submit">검색</button>
+  <span class="item-sub">장착 가능 부품이 많은 순</span>
+</form>
+
+{% for w in weapons %}
+<div class="card">
+  {% if w.icon_link %}<img class="thumb" src="{{ w.icon_link }}" alt="{{ w.name }}" loading="lazy">{% endif %}
+  <div class="body">
+    <div class="item-name">
+      <a href="{% url 'mods:weapon_detail' w.api_id %}">{{ w.name }}</a>
+      <span class="item-sub">{{ w.caliber_kr }}</span>
+    </div>
+    <div class="spec">
+      <b>조준편의</b> {{ w.ergonomics|default:"-" }} ·
+      <b>세로반동</b> {{ w.recoil_vertical|default:"-" }} ·
+      <b>가로반동</b> {{ w.recoil_horizontal|default:"-" }}
+      {% if w.fire_rate %} · <b>연사</b> {{ w.fire_rate }} RPM{% endif %}
+      · <b>가격</b> ₽{{ w.price|intcomma }}
+    </div>
+    <div class="spec">
+      <span class="tag">슬롯 {{ w.slot_count }}개</span>
+      <span class="tag">장착 가능 부품 {{ w.option_count }}종</span>
+    </div>
+  </div>
+</div>
+{% empty %}
+<div class="empty">
+  총기 데이터가 없습니다. <code>python manage.py sync_mods</code> 를 실행해 주세요.
+</div>
+{% endfor %}
+{% endblock %}

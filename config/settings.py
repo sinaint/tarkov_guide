@@ -25,6 +25,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "django.contrib.humanize",  # 숫자에 천 단위 콤마를 넣어줍니다
     "guide",  # 우리가 만든 앱
+    "mods",   # 총기 모딩 앱
 ]
 
 MIDDLEWARE = [
