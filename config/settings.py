@@ -2,19 +2,48 @@
 Django 설정 파일
 초보자용으로 꼭 필요한 항목만 남기고 주석을 달아두었습니다.
 """
+import os
 from pathlib import Path
 
 # 프로젝트 최상위 폴더 (manage.py 가 있는 위치)
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# 개발용 임시 키입니다. 실제 배포 시에는 환경변수로 빼주세요!
-SECRET_KEY = "django-insecure-tarkov-guide-dev-only-change-me"
 
-# 개발 중에는 True, 배포 시 반드시 False
-DEBUG = True
+def load_env(path):
+    """
+    .env 파일을 읽어 환경변수로 올립니다.
+
+    이미 설정된 환경변수가 이깁니다(setdefault). 배포 환경에서 주입한 진짜 값을
+    실수로 남아있던 .env 파일이 덮어쓰면 안 되기 때문입니다.
+    파일이 없으면 조용히 넘어갑니다 — 배포 환경에는 보통 .env 가 없습니다.
+    """
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return
+    for line in lines:
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        os.environ.setdefault(key.strip(), value.strip().strip("\"'"))
+
+
+load_env(BASE_DIR / ".env")
+
+# ── 시크릿은 코드에 두지 않습니다 ──────────────────────────────
+# 배포할 때는 DJANGO_SECRET_KEY 를 반드시 주입하세요.
+# 아래 기본값은 로컬에서 최소한 실행은 되게 하려는 값이며, 운영용이 아닙니다.
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "dev-only-not-for-production")
+
+# 기본값을 False 로 둡니다. 환경변수를 깜빡하고 배포해도
+# 에러 페이지에 설정값·소스코드가 노출되지 않습니다.
+DEBUG = os.environ.get("DJANGO_DEBUG", "0") == "1"
 
 # testserver 는 Django 자동 테스트용 주소입니다
-ALLOWED_HOSTS = ["localhost", "127.0.0.1", "testserver"]
+ALLOWED_HOSTS = os.environ.get(
+    "DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,testserver"
+).split(",")
 
 INSTALLED_APPS = [
     "django.contrib.admin",

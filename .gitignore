@@ -11,6 +11,9 @@ db.sqlite3
 # API ETag 캐시 (각자 로컬 상태)
 .sync_etag.json
 
+# 환경변수 (시크릿 포함 — 절대 커밋 금지)
+.env
+
 # 에디터 / OS
 .vscode/
 .idea/

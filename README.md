@@ -32,6 +32,34 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
+### 3.5단계. 환경변수 설정 ⭐
+
+시크릿 키는 코드에 넣지 않고 환경변수에서 읽습니다. 프로젝트 루트에 `.env` 파일을 만드세요.
+(`.env` 는 `.gitignore` 에 등록돼 있어 커밋되지 않습니다.)
+
+먼저 개발용 키를 하나 만들고,
+
+```powershell
+.venv\Scripts\python.exe -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
+```
+
+`.env` 파일에 이렇게 적습니다.
+
+```
+DJANGO_SECRET_KEY=위에서_나온_키
+DJANGO_DEBUG=1
+```
+
+> 💡 `DEBUG` 기본값은 **False** 입니다. 환경변수를 깜빡하고 배포해도 에러 페이지에
+> 설정값과 소스코드가 노출되지 않도록 하기 위해서입니다. 로컬 개발 시에는
+> 위처럼 `DJANGO_DEBUG=1` 을 넣어주세요. `.env` 만 만들어두면 그다음부터는 신경 쓸 게 없습니다.
+
+| 환경변수 | 기본값 | 설명 |
+|---|---|---|
+| `DJANGO_SECRET_KEY` | `dev-only-not-for-production` | 세션·CSRF 서명 키. **배포 시 반드시 주입** |
+| `DJANGO_DEBUG` | `0` (꺼짐) | `1` 이면 개발 모드 |
+| `DJANGO_ALLOWED_HOSTS` | `localhost,127.0.0.1,testserver` | 쉼표로 구분 |
+
 ### 4단계. 데이터베이스 만들기
 
 ```bash
@@ -111,22 +139,24 @@ schtasks /Create /TN "tarkov_guide sync" /SC HOURLY /F /TR ^
 ```
 tarkov_guide/
 ├─ manage.py                 ← 모든 명령어의 진입점
+├─ .env                      ← 시크릿 (직접 생성, 커밋 안 됨)
 ├─ config/
-│  ├─ settings.py            ← 설정 (DB, 앱 목록, 언어 등)
+│  ├─ settings.py            ← 설정 (환경변수 로드, DB, 앱 목록)
 │  └─ urls.py                ← 주소 → 앱 연결
-└─ guide/
-   ├─ models.py              ← 데이터 구조 정의
-   ├─ views.py               ← 페이지별 로직
-   ├─ urls.py                ← 페이지 주소
-   ├─ admin.py               ← 관리자 화면 설정
+├─ guide/                    ← 의료품 · 가방/리그 · 탄약
+│  ├─ models.py              ← 데이터 구조 + 구경 이름표(CALIBERS)
+│  ├─ views.py               ← 페이지별 로직
+│  ├─ tests.py               ← 동기화 판단 로직 자체 점검
+│  ├─ management/commands/
+│  │  └─ sync_tarkov.py      ← ⭐ API에서 데이터 받아오는 코드
+│  └─ templates/guide/       ← 화면(HTML)
+│     ├─ base.html           ← 공통 레이아웃 + CSS
+│     ├─ index.html · meds.html · storage.html · ammo.html
+└─ mods/                     ← 총기 모딩 (프리셋 · 슬롯 · 부품 랭킹)
+   ├─ models.py              ← Weapon / Preset / Mod / SlotOption
    ├─ management/commands/
-   │  └─ sync_tarkov.py      ← ⭐ API에서 데이터 받아오는 코드
-   └─ templates/guide/       ← 화면(HTML)
-      ├─ base.html           ← 공통 레이아웃 + CSS
-      ├─ index.html
-      ├─ meds.html
-      ├─ storage.html
-      └─ ammo.html
+   │  └─ sync_mods.py
+   └─ templates/mods/
 ```
 
 ---
@@ -159,4 +189,20 @@ tarkov_guide/
 - 아이템 이미지와 게임 데이터의 저작권은 **Battlestate Games**에 있습니다. 개인 학습·비상업 용도로만 사용하세요.
 - 수치는 **와이프와 패치마다 바뀝니다.** `sync_tarkov`를 주기적으로 실행하세요.
 - API를 짧은 간격으로 반복 호출하지 마세요. 하루 1~2회면 충분합니다.
-- `settings.py`의 `SECRET_KEY`와 `DEBUG = True`는 개발 전용입니다. 외부에 공개할 때는 반드시 바꿔주세요.
+
+---
+
+## 보안 메모 🔐
+
+- **시크릿은 코드에 없습니다.** `SECRET_KEY` / `DEBUG` / `ALLOWED_HOSTS` 는 모두 환경변수에서 읽습니다.
+  로컬에서는 `.env` 파일로 주입하고, 이 파일은 `.gitignore` 에 등록돼 커밋되지 않습니다.
+- **`DEBUG` 기본값은 `False`** 입니다. 환경변수를 빠뜨린 채 배포되더라도 에러 페이지로
+  설정값·소스코드·SQL이 새어나가지 않습니다. 안전한 쪽이 기본값이어야 한다는 원칙입니다.
+- **초기 커밋에 있던 키에 대하여** — 이 저장소의 첫 커밋(`3d3f89f`)에는
+  `django-insecure-tarkov-guide-dev-only-change-me` 라는 하드코딩 키가 있었습니다.
+  Django 가 `startproject` 시 생성하는 개발용 placeholder 로, **실제 서비스에 배포된 적이 없고
+  이미 폐기**되었습니다. 히스토리에는 남아 있으나 어디에도 유효하지 않습니다.
+  현재 개발 키는 `get_random_secret_key()` 로 새로 생성해 `.env` 로 분리했습니다.
+- 이 앱은 로그인·결제·개인정보를 다루지 않으며 읽기 전용 공개 데이터만 보여줍니다.
+  실제 인터넷에 공개 배포한다면 `python manage.py check --deploy` 를 먼저 돌려
+  HTTPS·보안 쿠키·클릭재킹 헤더 설정을 추가하세요.
