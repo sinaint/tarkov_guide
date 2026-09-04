@@ -1,0 +1,81 @@
+{% extends "guide/base.html" %}
+{% load humanize %}
+
+{% block title %}가방 · 리그{% endblock %}
+
+{% block content %}
+<h1>가방 · 리그</h1>
+
+<div class="notice">
+  <b>칸 수(capacity)만 보면 안 됩니다.</b><br>
+  같은 20칸이라도 <b>4x5 한 덩어리</b>인 가방과 <b>2x2가 다섯 개</b>인 가방은 완전히 다릅니다.
+  후자는 큰 총기나 긴 아이템을 아예 넣을 수 없어요.<br>
+  아래 <span class="grid-label">회색 격자 그림</span>이 실제 수납 칸 모양입니다.
+</div>
+
+<div class="filters">
+  <a href="?kind=backpack" class="{% if kind == 'backpack' %}on{% endif %}">가방</a>
+  <a href="?kind=rig" class="{% if kind == 'rig' %}on{% endif %}">리그 (체스트리그)</a>
+  <span class="item-sub">수납 칸 수가 많은 순</span>
+</div>
+
+<div class="cards">
+{% for item in items %}
+<div class="card">
+  {% if item.icon_link %}<img class="thumb" src="{{ item.icon_link }}" alt="{{ item.name }}" loading="lazy">{% endif %}
+  <div class="body">
+    <div class="item-name">
+      {% if item.wiki_link %}<a href="{{ item.wiki_link }}" target="_blank" rel="noopener">{{ item.name }}</a>
+      {% else %}{{ item.name }}{% endif %}
+      <span class="item-sub nw">착용 시 {{ item.width }}x{{ item.height }}칸 차지</span>
+    </div>
+
+    <div class="stats">
+      <span><span class="k">수납 칸</span><span class="v hi">{{ item.properties.capacity|default:"?" }}</span></span>
+      {% if item.properties.class %}
+      <span><span class="k">방탄 클래스</span><span class="v">{{ item.properties.class }}</span></span>
+      {% endif %}
+    </div>
+
+    {# 이동속도/회전 페널티는 음수일수록 나쁩니다 #}
+    {% if item.properties.speedPenalty or item.properties.ergoPenalty %}
+    <div class="spec">
+      {% if item.properties.speedPenalty %}<span class="tag bad">이동속도 {{ item.properties.speedPenalty }}</span>{% endif %}
+      {% if item.properties.turnPenalty %}<span class="tag bad">회전속도 {{ item.properties.turnPenalty }}</span>{% endif %}
+      {% if item.properties.ergoPenalty %}<span class="tag bad">조준편의 {{ item.properties.ergoPenalty }}</span>{% endif %}
+    </div>
+    {% endif %}
+
+    {# ★ 핵심: 실제 격자 모양을 CSS Grid로 그립니다 #}
+    <div class="spec"><b>수납 격자 모양</b></div>
+    <div>
+      {% for grid in item.grid_cells %}
+      <div class="grid-box">
+        <div class="grid" style="grid-template-columns: repeat({{ grid.w }}, 13px);">
+          {% for _ in grid.cells %}<span></span>{% endfor %}
+        </div>
+        <div class="grid-label">{{ grid.w }}x{{ grid.h }}</div>
+      </div>
+      {% empty %}
+      <span class="item-sub">격자 정보 없음</span>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="price">
+    <span class="num">₽{{ item.avg_24h_price|default:item.base_price|intcomma }}</span>
+    <span class="unit">평균가</span>
+    {% if item.price_per_slot %}
+    {# 칸당 가격이 가방 가성비 판단의 핵심이라 가격 옆에 같이 둡니다 #}
+    <span class="unit">칸당 ₽{{ item.price_per_slot|intcomma }}</span>
+    {% endif %}
+  </div>
+</div>
+{% empty %}
+<div class="empty">
+  표시할 아이템이 없습니다.<br>
+  <code>python manage.py sync_tarkov --only {{ kind }}</code> 를 실행해 보세요.
+</div>
+{% endfor %}
+</div>
+{% endblock %}

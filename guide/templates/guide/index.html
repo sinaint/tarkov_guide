@@ -1,0 +1,54 @@
+{% extends "guide/base.html" %}
+
+{% block content %}
+<h1>무엇부터 보면 되나요?</h1>
+
+<div class="notice">
+  타르코프는 정보량이 많아서 <b>"목록을 외우는 것"보다 "판단 기준을 익히는 것"</b>이 훨씬 빠릅니다.
+  각 페이지는 아이템을 나열만 하지 않고, 초보자가 바로 쓸 수 있는 우선순위 순으로 정렬해 두었습니다.
+</div>
+
+<div class="cards">
+<div class="card">
+  <div class="body">
+    <div class="item-name"><a href="{% url 'meds' %}">1. 의료품 · 주사기</a>
+      <span class="item-sub">({{ counts.meds|default:0 }}개)</span></div>
+    <div class="spec">
+      죽는 이유의 절반은 "출혈 처리를 못 해서"입니다.<br>
+      <b>순서 기억하기 →</b> 중상 출혈 지혈 → 경상 출혈 지혈 → 골절 고정 → 체력 회복 → (여유되면) 스팀
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="body">
+    <div class="item-name"><a href="{% url 'storage' %}">2. 가방 · 리그</a>
+      <span class="item-sub">(가방 {{ counts.backpack|default:0 }}개 / 리그 {{ counts.rig|default:0 }}개)</span></div>
+    <div class="spec">
+      칸 수만 보면 안 됩니다. <b>내부 격자 모양</b>이 중요해요.
+      1x1 칸이 여러 개인 가방에는 큰 총기를 못 넣습니다.<br>
+      각 아이템마다 실제 수납 격자 모양을 그림으로 표시했습니다.
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="body">
+    <div class="item-name"><a href="{% url 'ammo' %}">3. 탄약</a>
+      <span class="item-sub">({{ counts.ammo|default:0 }}개)</span></div>
+    <div class="spec">
+      <b>타르코프의 제1원칙: 비싼 총보다 좋은 탄이 훨씬 중요합니다.</b><br>
+      싸구려 총에 좋은 탄을 넣으면 이기고, 비싼 총에 나쁜 탄을 넣으면 집니다.
+      구경별로 묶어서 피해량 / 관통력을 비교할 수 있게 만들었습니다.
+    </div>
+  </div>
+</div>
+</div>
+
+{% if not counts %}
+<div class="notice warn">
+  아직 데이터가 없습니다. 터미널에서 아래 명령어를 먼저 실행해 주세요.<br>
+  <code>python manage.py sync_tarkov</code>
+</div>
+{% endif %}
+{% endblock %}

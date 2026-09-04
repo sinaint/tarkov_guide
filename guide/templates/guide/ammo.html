@@ -1,0 +1,291 @@
+{% extends "guide/base.html" %}
+{% load humanize %}
+
+{% block title %}탄약 비교{% endblock %}
+
+{% block content %}
+<h1>탄약 비교</h1>
+
+<div class="notice warn">
+  <b>타르코프에서 가장 중요한 개념입니다.</b><br>
+  ▸ <b>피해량(damage)</b>은 <u>방탄에 막히지 않았을 때</u>의 데미지입니다. 팔다리에만 의미가 큽니다.<br>
+  ▸ <b>관통력(penetration)</b>이 상대 방탄 클래스를 못 넘기면, 피해량이 아무리 높아도 거의 안 아픕니다.<br>
+  ▸ 그래서 <b>초보자는 피해량이 아니라 관통력을 먼저 보는 습관</b>을 들여야 합니다.
+</div>
+
+<div class="filters">
+  <a href="?sort=pen{% if selected %}&caliber={{ selected }}{% endif %}"
+     class="{% if sort_key == 'pen' %}on{% endif %}">관통력 순</a>
+  <a href="?sort=damage{% if selected %}&caliber={{ selected }}{% endif %}"
+     class="{% if sort_key == 'damage' %}on{% endif %}">피해량 순</a>
+</div>
+
+{# 구경이 31종이라 버튼으로 늘어놓으면 안 읽힙니다. 묶음별 선택 상자로 처리합니다. #}
+<form class="filters" method="get">
+  <input type="hidden" name="sort" value="{{ sort_key }}">
+  <label for="caliber">구경</label>
+  <select id="caliber" name="caliber" onchange="this.form.submit()">
+    <option value="">전체 구경</option>
+    {% for group, members in caliber_groups %}
+    <optgroup label="{{ group }}">
+      {% for code, label in members %}
+      <option value="{{ code }}" {% if selected == code %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </optgroup>
+    {% endfor %}
+  </select>
+  <noscript><button type="submit">보기</button></noscript>
+  <span class="item-sub">{{ items|length }}종</span>
+</form>
+
+<div class="cards">
+{% for item in items %}
+<div class="card">
+  {% if item.icon_link %}<img class="thumb" src="{{ item.icon_link }}" alt="{{ item.name }}" loading="lazy">{% endif %}
+  <div class="body">
+    <div class="item-name">
+      {% if item.wiki_link %}<a href="{{ item.wiki_link }}" target="_blank" rel="noopener">{{ item.name }}</a>
+      {% else %}{{ item.name }}{% endif %}
+      <span class="item-sub">{{ item.caliber_kr|default:"?" }}</span>
+    </div>
+
+    {# 관통력을 초보자용 등급 문구로 변환해서 보여줍니다 #}
+    {% with grade=item.pen_grade %}
+      <span class="tag {% if grade.1 == 'gray' %}bad{% else %}good{% endif %}">{{ grade.0 }}</span>
+    {% endwith %}
+    {% if item.properties.tracer %}<span class="tag">예광탄 (위치 노출 주의)</span>{% endif %}
+    {% if item.properties.projectileCount > 1 %}
+      <span class="tag">산탄 {{ item.properties.projectileCount }}발</span>
+    {% endif %}
+
+    {# 1줄: 초보자가 실제로 보고 판단하는 두 숫자 #}
+    <div class="stats">
+      <span><span class="k">관통력</span><span class="v hi">{{ item.properties.penetrationPower|default:"-" }}</span></span>
+      <span><span class="k">피해량</span><span class="v">{{ item.properties.damage|default:"-" }}</span></span>
+    </div>
+
+    {# 2줄: 나머지 참고 수치 #}
+    <div class="spec">
+      {% if item.properties.armorDamage %}<span class="nw"><b>방탄 피해</b> {{ item.properties.armorDamage }}</span> · {% endif %}
+      {% if item.properties.fragmentationChance %}<span class="nw"><b>파편화</b> {{ item.properties.fragmentationChance }}</span> · {% endif %}
+      {% if item.properties.initialSpeed %}<span class="nw"><b>탄속</b> {{ item.properties.initialSpeed }}m/s</span>{% endif %}
+    </div>
+  </div>
+
+  <div class="price">
+    <span class="num">₽{{ item.avg_24h_price|default:item.base_price|intcomma }}</span>
+    <span class="unit">1발 평균가</span>
+  </div>
+</div>
+{% empty %}
+<div class="empty">
+  표시할 탄약이 없습니다.<br>
+  <code>python manage.py sync_tarkov --only ammo</code> 를 실행해 보세요.
+</div>
+{% endfor %}
+</div>
+{% endblock %}
+
+
+{# ============================================================
+   구경 선택기 — 기본 <select>를 '검색 가능한 드롭다운'으로 바꿉니다.
+
+   핵심: 위의 <select id="caliber">는 지우지 않고 화면에서만 숨깁니다.
+   값 저장과 폼 제출(?caliber=...)은 그대로 select가 담당하므로
+   서버 코드는 손댈 필요가 없고, 자바스크립트가 꺼져 있으면
+   원래의 기본 드롭다운이 그대로 보입니다.
+   ============================================================ #}
+{% block foot %}
+<style>
+  .caliber-picker { position: relative; display: inline-block; }
+
+  .caliber-picker-btn {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    min-width: 180px; padding: 6px 12px;
+    background: var(--panel-2); color: var(--text);
+    border: 1px solid var(--line);
+    font: inherit; font-size: 13px; cursor: pointer;
+  }
+  .caliber-picker-btn:hover,
+  .caliber-picker-btn.is-open { border-color: var(--accent); color: var(--accent); }
+  .caliber-picker-btn .arrow { font-size: 11px; opacity: .7; transition: transform .15s ease; }
+  .caliber-picker-btn.is-open .arrow { transform: rotate(180deg); }
+
+  .caliber-picker-panel {
+    position: absolute; top: calc(100% + 6px); left: 0; z-index: 50;
+    width: 320px; max-width: 90vw;
+    background: var(--panel); border: 1px solid var(--line);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .5);
+  }
+
+  .caliber-picker-search {
+    width: 100%; padding: 10px 12px;
+    background: var(--bg); color: var(--text);
+    border: none; border-bottom: 1px solid var(--line);
+    font: inherit; font-size: 14px; outline: none;
+  }
+  .caliber-picker-search::placeholder { color: var(--text-dim); }
+
+  .caliber-picker-list { max-height: 360px; overflow-y: auto; padding: 4px 0; }
+  .caliber-picker-list::-webkit-scrollbar { width: 8px; }
+  .caliber-picker-list::-webkit-scrollbar-thumb { background: var(--line); }
+
+  .caliber-picker-group {
+    padding: 10px 14px 4px;
+    font-size: 11px; letter-spacing: .05em; color: var(--accent);
+  }
+
+  .caliber-picker-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 9px 14px; font-size: 14px; color: var(--text); cursor: pointer;
+  }
+  .caliber-picker-item:hover { background: var(--panel-2); color: #fff; }
+  .caliber-picker-item.is-selected { color: var(--accent); font-weight: 700; }
+  .caliber-picker-item.is-selected::after { content: "✓"; }
+  .caliber-picker-item.is-reset { border-bottom: 1px solid var(--line); }
+
+  .caliber-picker-empty { padding: 18px 14px; text-align: center; color: var(--text-dim); font-size: 13px; }
+
+  /* 항목이 display:flex 라서 hidden 속성만으로는 안 숨겨집니다. 명시적으로 눌러줍니다. */
+  .caliber-picker-list [hidden] { display: none !important; }
+</style>
+
+<script>
+(function () {
+  var select = document.getElementById('caliber');
+  if (!select) return;   // 구경 필터가 없는 페이지면 아무 일도 하지 않습니다.
+
+  var wrap = document.createElement('div');
+  wrap.className = 'caliber-picker';
+
+  var btn = document.createElement('button');
+  btn.type = 'button';
+  btn.id = 'caliber-picker-btn';
+  btn.className = 'caliber-picker-btn';
+  btn.innerHTML = '<span class="label"></span><span class="arrow">▾</span>';
+  var btnLabel = btn.querySelector('.label');
+
+  var panel = document.createElement('div');
+  panel.className = 'caliber-picker-panel';
+  panel.hidden = true;
+
+  var search = document.createElement('input');
+  search.type = 'text';
+  search.className = 'caliber-picker-search';
+  search.placeholder = '구경 검색 (예: 5.56, 762, ACP)';
+
+  var list = document.createElement('div');
+  list.className = 'caliber-picker-list';
+
+  panel.appendChild(search);
+  panel.appendChild(list);
+  wrap.appendChild(btn);
+  wrap.appendChild(panel);
+
+  var selected = select.options[select.selectedIndex];
+  btnLabel.textContent = selected ? selected.textContent.trim() : '전체 구경';
+
+  var items = [];   // { el, text, isGroup } — 검색 필터링에 씁니다
+
+  function makeItem(value, text, isReset) {
+    var el = document.createElement('div');
+    el.className = 'caliber-picker-item' + (isReset ? ' is-reset' : '');
+    el.textContent = text;
+    if (value === select.value) el.classList.add('is-selected');
+    el.addEventListener('click', function () {
+      select.value = value;
+      close();
+      // 기본 select 와 똑같이 change 를 쏴서, 기존 onchange(폼 자동 제출)를 그대로 씁니다.
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    list.appendChild(el);
+    // 이름뿐 아니라 코드(Caliber556x45NATO)도 같이 검색되게 합니다.
+    // "556" 처럼 숫자만 쳐도 찾히도록.
+    items.push({ el: el, text: (text + ' ' + value).toLowerCase() });
+  }
+
+  makeItem('', '전체 구경', true);
+
+  Array.prototype.forEach.call(select.children, function (node) {
+    if (node.tagName === 'OPTGROUP') {
+      var header = document.createElement('div');
+      header.className = 'caliber-picker-group';
+      header.textContent = node.label;
+      list.appendChild(header);
+      items.push({ el: header, isGroup: true });
+      Array.prototype.forEach.call(node.children, function (opt) {
+        makeItem(opt.value, opt.textContent.trim(), false);
+      });
+    } else if (node.tagName === 'OPTION' && node.value !== '') {
+      makeItem(node.value, node.textContent.trim(), false);
+    }
+  });
+
+  var emptyMsg = document.createElement('div');
+  emptyMsg.className = 'caliber-picker-empty';
+  emptyMsg.textContent = '일치하는 구경이 없습니다.';
+  emptyMsg.hidden = true;
+  list.appendChild(emptyMsg);
+
+  // 검색어에 맞춰 항목을 걸러냅니다.
+  // 묶음 제목은 그 안에 살아남은 항목이 하나라도 있을 때만 보입니다.
+  function filter(query) {
+    var q = query.trim().toLowerCase();
+    var lastGroup = null, groupHasVisible = false, anyVisible = false;
+
+    items.forEach(function (it) {
+      if (it.isGroup) {
+        if (lastGroup) lastGroup.el.hidden = !groupHasVisible;
+        lastGroup = it;
+        groupHasVisible = false;
+        return;
+      }
+      // '전체 구경'은 검색 중일 때 숨깁니다 (결과를 방해하지 않도록)
+      var match = it.el.classList.contains('is-reset') ? !q
+                                                      : (!q || it.text.indexOf(q) !== -1);
+      it.el.hidden = !match;
+      if (match) { groupHasVisible = true; anyVisible = true; }
+    });
+    if (lastGroup) lastGroup.el.hidden = !groupHasVisible;
+    emptyMsg.hidden = anyVisible;
+  }
+
+  function open() {
+    panel.hidden = false;
+    btn.classList.add('is-open');
+    search.value = '';
+    filter('');
+    search.focus();
+  }
+  function close() {
+    panel.hidden = true;
+    btn.classList.remove('is-open');
+  }
+
+  btn.addEventListener('click', function () { panel.hidden ? open() : close(); });
+  document.addEventListener('click', function (e) { if (!wrap.contains(e.target)) close(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
+  search.addEventListener('input', function () { filter(search.value); });
+
+  // 검색 후 Enter → 화면에 보이는 첫 항목을 바로 선택
+  search.addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    var first = items.find(function (it) { return !it.isGroup && !it.el.hidden; });
+    if (first) first.el.click();
+  });
+
+  // 기존 select 는 화면에서만 숨깁니다 (값 저장·폼 제출은 계속 담당).
+  select.style.position = 'absolute';
+  select.style.opacity = '0';
+  select.style.pointerEvents = 'none';
+  select.style.width = '1px';
+  select.style.height = '1px';
+  select.after(wrap);
+
+  // "구경" 라벨이 숨겨진 select 를 가리키면 클릭이 죽습니다. 새 버튼으로 옮깁니다.
+  var label = document.querySelector('label[for="caliber"]');
+  if (label) label.htmlFor = btn.id;
+})();
+</script>
+{% endblock %}

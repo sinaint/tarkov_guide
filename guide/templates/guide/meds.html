@@ -1,0 +1,92 @@
+{% extends "guide/base.html" %}
+{% load humanize %}
+
+{% block title %}의료품 · 주사기{% endblock %}
+
+{% block content %}
+<h1>의료품 · 주사기</h1>
+
+<div class="notice">
+  <b>초보자 필수 판단 기준</b><br>
+  ① <b>중상 출혈</b>은 방치하면 몇 초 만에 죽습니다. 지혈 가능한 아이템을 반드시 1개는 챙기세요.<br>
+  ② <b>골절</b>은 스플린트류로만 고정됩니다. 다리 골절 상태로는 뛸 수 없어요.<br>
+  ③ 스팀(주사기)은 강력하지만 <b>부작용과 지속시간</b>이 있습니다. 아래 효과 표시를 꼭 확인하세요.
+</div>
+
+<div class="filters">
+  <a href="?{% if keyword %}q={{ keyword|urlencode }}{% endif %}"
+     class="{% if not kind %}on{% endif %}">전체</a>
+  <a href="?kind=med{% if keyword %}&q={{ keyword|urlencode }}{% endif %}"
+     class="{% if kind == 'med' %}on{% endif %}">의약품</a>
+  <a href="?kind=injector{% if keyword %}&q={{ keyword|urlencode }}{% endif %}"
+     class="{% if kind == 'injector' %}on{% endif %}">주사기</a>
+</div>
+
+<form class="filters" method="get">
+  {# 검색해도 위에서 고른 분류가 풀리지 않도록 함께 넘깁니다 #}
+  {% if kind %}<input type="hidden" name="kind" value="{{ kind }}">{% endif %}
+  <input type="text" name="q" value="{{ keyword }}" placeholder="이름으로 검색">
+  <button type="submit">검색</button>
+  <span class="item-sub">가격이 저렴한 순으로 정렬됩니다 (초보자 접근 순서) · {{ items|length }}개</span>
+</form>
+
+<div class="cards">
+{% for item in items %}
+<div class="card">
+  {% if item.icon_link %}<img class="thumb" src="{{ item.icon_link }}" alt="{{ item.name }}" loading="lazy">{% endif %}
+  <div class="body">
+    <div class="item-name">
+      {% if item.wiki_link %}<a href="{{ item.wiki_link }}" target="_blank" rel="noopener">{{ item.name }}</a>
+      {% else %}{{ item.name }}{% endif %}
+      <span class="item-sub nw">{{ item.short_name }} · {{ item.width }}x{{ item.height }}칸</span>
+    </div>
+
+    {# 치료 가능한 상태를 태그로 표시 #}
+    {% for cure in item.cures_kr %}<span class="tag good">{{ cure }}</span>{% endfor %}
+    {% if not item.cures_kr %}<span class="tag">치료 효과 없음</span>{% endif %}
+
+    <div class="spec">
+      {% if item.properties.hitpoints %}<span class="nw"><b>회복량</b> {{ item.properties.hitpoints }} HP</span> · {% endif %}
+      {% if item.properties.maxHealPerUse %}<span class="nw"><b>1회 최대</b> {{ item.properties.maxHealPerUse }} HP</span> · {% endif %}
+      {% if item.properties.uses %}<span class="nw"><b>사용 횟수</b> {{ item.properties.uses }}회</span> · {% endif %}
+      {% if item.properties.useTime %}<span class="nw"><b>사용 시간</b> {{ item.properties.useTime }}초</span>{% endif %}
+      {% if item.properties.painkillerDuration %} · <span class="nw"><b>진통 지속</b> {{ item.properties.painkillerDuration }}초</span>{% endif %}
+    </div>
+
+    {# 출혈 치료 시 체력 소모 — 초보자가 잘 모르는 함정입니다 #}
+    {% if item.properties.hpCostHeavyBleeding %}
+    <div class="spec">
+      ⚠️ 지혈 시 체력 소모 — 중상 {{ item.properties.hpCostHeavyBleeding }} HP
+      {% if item.properties.hpCostLightBleeding %}/ 경상 {{ item.properties.hpCostLightBleeding }} HP{% endif %}
+    </div>
+    {% endif %}
+
+    {# 스팀(주사기) 효과 목록 #}
+    {% if item.properties.stimEffects %}
+    <div class="spec">
+      <b>주사기 효과</b>
+      {# 효과·스킬 이름은 sync_tarkov 가 한국어로 바꿔서 저장해 둡니다 #}
+      {% for e in item.properties.stimEffects %}
+        <span class="tag {% if e.value < 0 %}bad{% else %}good{% endif %}">
+          {% if e.skill %}{{ e.skill }} 스킬{% else %}{{ e.type }}{% endif %}
+          {% if e.value %}{% if e.value > 0 %}+{% endif %}{{ e.value }}{% if e.percent %}%{% endif %}{% endif %}
+          {% if e.duration %}({{ e.duration }}초){% endif %}
+        </span>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="price">
+    <span class="num">₽{{ item.avg_24h_price|default:item.base_price|intcomma }}</span>
+    <span class="unit">평균가</span>
+  </div>
+</div>
+{% empty %}
+<div class="empty">
+  표시할 아이템이 없습니다.<br>
+  <code>python manage.py sync_tarkov --only meds</code> 를 실행해 보세요.
+</div>
+{% endfor %}
+</div>
+{% endblock %}
