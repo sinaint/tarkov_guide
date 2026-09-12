@@ -26,7 +26,14 @@ def load_env(path):
         if not line or line.startswith("#") or "=" not in line:
             continue
         key, value = line.split("=", 1)
-        os.environ.setdefault(key.strip(), value.strip().strip("\"'"))
+        value = value.strip()
+        # 값 뒤에 붙은 인라인 주석을 잘라냅니다.
+        #   DJANGO_DEBUG=1  # 개발용   →   "1"
+        # 이걸 안 하면 값이 "1  # 개발용" 이 되어 비교가 조용히 실패합니다.
+        # 값 자체에 #이 들어갈 수 있으므로, 앞에 공백이 붙은 # 만 주석으로 봅니다.
+        if " #" in value:
+            value = value.split(" #", 1)[0].strip()
+        os.environ.setdefault(key.strip(), value.strip("\"'"))
 
 
 load_env(BASE_DIR / ".env")
@@ -40,10 +47,17 @@ SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "dev-only-not-for-production")
 # 에러 페이지에 설정값·소스코드가 노출되지 않습니다.
 DEBUG = os.environ.get("DJANGO_DEBUG", "0") == "1"
 
-# testserver 는 Django 자동 테스트용 주소입니다
-ALLOWED_HOSTS = os.environ.get(
-    "DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,testserver"
-).split(",")
+# testserver 는 Django 자동 테스트용 주소입니다.
+# 쉼표로 나눈 뒤 앞뒤 공백을 제거합니다.
+#   "a.com, b.com" 처럼 공백을 넣어도 " b.com" 이 되지 않도록.
+# (공백이 남으면 그 주소로 들어온 요청이 전부 500 에러가 납니다)
+ALLOWED_HOSTS = [
+    h.strip()
+    for h in os.environ.get(
+        "DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,testserver"
+    ).split(",")
+    if h.strip()  # 맨 끝 쉼표 등으로 생긴 빈 값 제거
+]
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -98,7 +112,22 @@ DATABASES = {
     }
 }
 
-AUTH_PASSWORD_VALIDATORS = []
+# 관리자(/admin/) 계정 비밀번호 규칙입니다.
+# 비워두면 "1234" 같은 비밀번호도 통과하는데, admin 주소는
+# 인터넷에 올리는 순간 자동 스캔 봇이 가장 먼저 두드리는 문입니다.
+AUTH_PASSWORD_VALIDATORS = [
+    # 아이디·이메일과 비슷한 비밀번호 차단 (예: zero / zero1234)
+    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
+    # 최소 길이
+    {
+        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
+        "OPTIONS": {"min_length": 10},
+    },
+    # 흔히 쓰이는 비밀번호 2만 개 목록과 대조
+    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
+    # 숫자로만 이루어진 비밀번호 차단
+    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
+]
 
 # 한국어 / 한국 시간대 설정
 LANGUAGE_CODE = "ko-kr"
@@ -109,3 +138,45 @@ USE_TZ = True
 STATIC_URL = "static/"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+
+# ── 배포 환경 보안 설정 ────────────────────────────────────────
+# DEBUG 가 False 일 때(= 실제 배포)만 켭니다.
+# 로컬 개발은 http 라서 아래를 항상 켜면 사이트에 접속 자체가 안 됩니다.
+#
+# 적용 후 점검:
+#   $env:DJANGO_DEBUG="0"
+#   .venv\Scripts\python.exe manage.py check --deploy
+if not DEBUG:
+    # http 로 들어온 요청을 https 로 돌려보냅니다
+    SECURE_SSL_REDIRECT = True
+
+    # 세션·CSRF 쿠키를 https 에서만 전송합니다.
+    # (평문 http 로 새어나가면 로그인 세션을 통째로 탈취당할 수 있습니다)
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+
+    # 자바스크립트가 세션 쿠키를 읽지 못하게 합니다 (XSS 피해 축소)
+    SESSION_COOKIE_HTTPONLY = True
+
+    # 외부 사이트에서 넘어온 요청에는 쿠키를 보내지 않습니다 (CSRF 방어 보강)
+    SESSION_COOKIE_SAMESITE = "Lax"
+    CSRF_COOKIE_SAMESITE = "Lax"
+
+    # HSTS: 브라우저에게 "이 사이트는 앞으로 https 로만 접속하라" 고 기억시킵니다.
+    #
+    # ⚠️ 주의: 한 번 기억되면 이 기간 동안 되돌리기 어렵습니다.
+    #    인증서가 만료되면 사이트가 통째로 안 열립니다.
+    #    처음엔 1시간(3600)으로 두고, 인증서 자동 갱신이 도는 걸 확인한 뒤
+    #    1년(31536000)으로 올리세요.
+    SECURE_HSTS_SECONDS = 3600
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+
+    # 리버스 프록시(Nginx, AWS ALB 등) 뒤에 있을 때,
+    # 원래 요청이 https 였는지 판단하는 근거가 되는 헤더입니다.
+    #
+    # ⚠️ 주의: 신뢰할 수 있는 프록시 뒤에 있을 때만 켜세요.
+    #    프록시 없이 켜면 공격자가 이 헤더를 위조해 https 인 척할 수 있습니다.
+    #    프록시 없이 직접 배포한다면 아래 줄을 주석 처리하세요.
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
